@@ -1,4 +1,4 @@
-# synthesim — three runtimes, one image.
+# rtSD Explorer — three runtimes, one image.
 #
 # Quickstart:
 #   docker compose up shiny       # Shiny app at http://localhost:3838
@@ -11,33 +11,33 @@
 services:
   shiny:
     build: .
-    image: synthesim:latest
-    container_name: synthesim-shiny
+    image: rtsd:latest
+    container_name: rtsd-shiny
     ports:
       - "3838:3838"
     volumes:
-      - .:/synthesim
+      - .:/rtsd
     command: >
-      R -e "shiny::runApp('inst/shiny/synthesim',
+      R -e "shiny::runApp('inst/shiny/rtsd',
             host = '0.0.0.0', port = 3838)"
 
   marimo:
     build: .
-    image: synthesim:latest
-    container_name: synthesim-marimo
+    image: rtsd:latest
+    container_name: rtsd-marimo
     ports:
       - "2718:2718"
     volumes:
-      - .:/synthesim
+      - .:/rtsd
     command: >
       python3 -m marimo edit
       --host 0.0.0.0 --port 2718 --headless --no-token
-      python/synthesim/synthesim.py
+      python/rtsd/rtsd.py
 
   validate:
     build: .
-    image: synthesim:latest
-    container_name: synthesim-validate
+    image: rtsd:latest
+    container_name: rtsd-validate
     volumes:
-      - .:/synthesim
+      - .:/rtsd
     command: Rscript tests/validate_reference_modes.R

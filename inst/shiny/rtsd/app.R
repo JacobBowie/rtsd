@@ -1,15 +1,16 @@
-#' synthesim — MEDv4 fitness-fatigue-signal explorer
+#' rtSD Explorer — MEDv4 fitness-fatigue-signal explorer for resistance training
 #'
 #' Single-file Shiny app for interactively exploring the MEDv4
 #' fitness-fatigue-signal ODE through deterministic forward simulation
-#' driven by sliders. Live deployment at
-#' https://get-paid.shinyapps.io/synthesim/ .
+#' driven by sliders. The Shiny surface of the rtSD model
+#' (system-dynamics implementation of GET-PAID for resistance training).
+#' Live deployment at https://get-paid.shinyapps.io/rtsd/ .
 #'
 #' Run from project root:
-#'   shiny::runApp("inst/shiny/synthesim")
+#'   shiny::runApp("inst/shiny/rtsd")
 #'
 #' Or from anywhere:
-#'   shiny::runApp(system.file("shiny/synthesim", package = "synthesim"))
+#'   shiny::runApp(system.file("shiny/rtsd", package = "rtSD"))
 
 library(shiny)
 library(bslib)
@@ -70,7 +71,7 @@ scenario_training_fn <- function(scenario, grid, params, sessions_per_week,
 # -----------------------------------------------------------------------------
 
 ui <- page_sidebar(
-  title = "synthesim — MEDv4 fitness-fatigue explorer",
+  title = "rtSD Explorer — MEDv4 fitness-fatigue model for resistance training",
   theme = bs_theme(version = 5, preset = "flatly"),
 
   sidebar = sidebar(

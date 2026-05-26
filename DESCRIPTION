@@ -1,5 +1,5 @@
-Package: synthesim
-Title: Interactive Explorer for the MEDv4 Fitness-Fatigue Model
+Package: rtSD
+Title: System-Dynamics Model of Resistance-Training Adaptation (rtSD Explorer)
 Version: 0.1.0
 Authors@R:
     person("Jacob", "Bowie", email = "jacob.bowie2@gmail.com",
@@ -13,8 +13,8 @@ Description: A deterministic forward-simulator for the MEDv4
     (Renaissance Periodization mesocycles, return-from-break,
     detraining, custom event lists).
 License: MIT + file LICENSE
-URL: https://github.com/JacobBowie/synthesim, https://get-paid.shinyapps.io/synthesim/
-BugReports: https://github.com/JacobBowie/synthesim/issues
+URL: https://github.com/JacobBowie/rtsd, https://get-paid.shinyapps.io/rtsd/
+BugReports: https://github.com/JacobBowie/rtsd/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1

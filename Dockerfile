@@ -1,14 +1,14 @@
 # syntax=docker/dockerfile:1.7
 #
-# synthesim — reproducible R + Python runtime for the MEDv4 explorer.
+# rtSD Explorer — reproducible R + Python runtime for the MEDv4 model.
 #
 # Three entrypoints share one image:
 #   1. shiny    (port 3838)  — the R Shiny app
 #   2. marimo   (port 2718)  — the marimo notebook (editable)
 #   3. validate              — runs the 7-test reference-mode validator
 #
-# Build:    docker build -t synthesim .
-# Default:  docker run --rm -p 3838:3838 synthesim   # Shiny on http://localhost:3838
+# Build:    docker build -t rtsd .
+# Default:  docker run --rm -p 3838:3838 rtsd   # Shiny on http://localhost:3838
 
 FROM rocker/r-ver:4.5.2
 
@@ -66,10 +66,10 @@ RUN pip install --no-cache-dir \
       matplotlib
 
 # --- Project ----------------------------------------------------------------
-WORKDIR /synthesim
-COPY . /synthesim
+WORKDIR /rtsd
+COPY . /rtsd
 
 EXPOSE 3838 2718
 
-# Default entrypoint = Shiny. Override via `docker run synthesim <command>`.
-CMD ["R", "-e", "shiny::runApp('inst/shiny/synthesim', host = '0.0.0.0', port = 3838)"]
+# Default entrypoint = Shiny. Override via `docker run rtsd <command>`.
+CMD ["R", "-e", "shiny::runApp('inst/shiny/rtsd', host = '0.0.0.0', port = 3838)"]

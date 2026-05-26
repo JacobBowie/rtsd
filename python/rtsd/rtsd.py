@@ -1,16 +1,16 @@
-"""synthesim — MEDv4 fitness-fatigue-signal explorer (marimo notebook).
+"""rtSD Explorer — MEDv4 fitness-fatigue-signal explorer (marimo notebook).
 
-Reactive Python port of the Shiny synthesim app. Same model, same RP program
+Reactive Python port of the Shiny rtSD Explorer app. Same model, same RP program
 generator, same controls — but built on marimo, which means:
 
   - Single file, no server needed
   - Reactive: change a slider, downstream cells recompute automatically
   - Static export to WASM (Pyodide) for free in-browser hosting via
-        `marimo export html-wasm synthesim.py -o synthesim.html`
+        `marimo export html-wasm rtsd.py -o rtsd.html`
 
 Run interactively:
 
-    python -m marimo edit python/synthesim/synthesim.py
+    python -m marimo edit python/rtsd/rtsd.py
 """
 
 import marimo
@@ -31,7 +31,7 @@ def _imports():
 @app.cell
 def _intro(mo):
     mo.md(r"""
-    # synthesim — MEDv4 explorer
+    # rtSD Explorer — MEDv4 model for resistance training
 
     Three-stock fitness-fatigue ODE driven by a TRIMP forcing function.
     Pick a training scenario, drag the parameters, watch the dynamics.

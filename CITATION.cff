@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
-title: "synthesim: an interactive explorer for the MEDv4 fitness-fatigue model"
+title: "rtSD Explorer: an interactive system-dynamics explorer for resistance-training adaptation"
 abstract: >
   A deterministic forward-simulator for the MEDv4 fitness-fatigue-signal
   ODE — a three-stock system-dynamics model of resistance-training
@@ -14,8 +14,8 @@ authors:
     given-names: Jacob
     email: jacob.bowie2@gmail.com
     affiliation: University of Connecticut
-repository-code: "https://github.com/JacobBowie/synthesim"
-url: "https://get-paid.shinyapps.io/synthesim/"
+repository-code: "https://github.com/JacobBowie/rtsd"
+url: "https://get-paid.shinyapps.io/rtsd/"
 license: MIT
 version: "0.1.0"
 date-released: "2026-05-12"
