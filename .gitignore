@@ -22,6 +22,7 @@ dist/
 # Validator output (regenerable via tests/validate_reference_modes.R)
 data/validation/reference_modes/*.rds
 data/validation/reference_modes/*.csv
+data/validation/reference_modes/*.png
 
 # OS
 .DS_Store

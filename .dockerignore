@@ -14,8 +14,15 @@ __pycache__
 *.pyc
 .ipynb_checkpoints
 .venv
+venv
 env
 **/__marimo__
+
+# R env state (binary-incompat between host and container — never ship)
+renv/library
+renv/staging
+renv/sandbox
+renv/python
 
 # marimo + WASM build output
 build
@@ -26,12 +33,26 @@ dist
 data/validation/reference_modes/*.rds
 data/validation/reference_modes/*.csv
 
+# Defensive — common bloat sources even though absent today
+data/raw
+data/derived
+results
+outputs
+logs
+_freeze
+.quarto
+
 # OS / editor
 .DS_Store
 Thumbs.db
 .vscode
 .idea
 *.swp
+*.log
+
+# Secrets — never ship
+.env
+.env.*
 
 # Agent state
 .claude
