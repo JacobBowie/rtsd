@@ -35,3 +35,8 @@ Thumbs.db
 
 # Claude / agent state
 .claude/
+
+# Internal coordination notes — handoffs, postmortems, runbooks, punch lists.
+# Cross-agent/session working notes; NOT public-repo content. Kept on disk for
+# local coordination but never committed/pushed.
+notebook/
