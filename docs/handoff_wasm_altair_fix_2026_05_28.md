@@ -119,3 +119,37 @@ Drop the `alt.theme.ThemeConfig(...)` wrapper — both APIs accept a plain dict.
 
 - Deploy + diagnosis: Netlify session, 2026-05-28 (live preview at `deploy-preview-10--jacobbowie.netlify.app`).
 - Altair 5.5 theme-API change: confirmed via local `AltairDeprecationWarning` ("Deprecated since altair=5.5.0").
+
+---
+
+## 9. Re-release runbook (rtSD session → Netlify session, post-fix — EXECUTE THIS)
+
+Supersedes §6's now-stale bits: the stray `CLAUDE.md` is auto-stripped by
+`build_wasm.py` (no manual `--exclude` needed), and the fix IS committed.
+
+- **Fix commit:** `b511b08` on `main` (rtSD repo). **NOT pushed yet** — `gh release`
+  needs the commit on the `JacobBowie/rtsd` remote, so step 1 is a push (do it with
+  Jacob's OK; the rtSD session deliberately did not push).
+
+```bash
+# 1. Push the fix (authorize first)
+git -C Projects/synthesim push origin main
+
+# 2. Build a fresh, clean WASM bundle (CLAUDE.md now auto-stripped)
+python Projects/synthesim/python/rtsd/build_wasm.py --export
+
+# 3. Tarball (index.html + assets/ at root; no --exclude needed now)
+tar -czf /tmp/rtsd-wasm.tar.gz -C Projects/synthesim/python/rtsd/build/wasm .
+
+# 4. Cut v0.2.1 at the FIX commit (v0.2.0 points at pre-fix code → don't reuse it)
+git -C Projects/synthesim tag v0.2.1 b511b08
+git -C Projects/synthesim push origin v0.2.1
+gh release create v0.2.1 /tmp/rtsd-wasm.tar.gz --repo JacobBowie/rtsd \
+   --title "rtSD Explorer v0.2.1 — WASM Altair cross-version fix"
+```
+
+- **5. Bump `RTSD_TAG=v0.2.1`** in the portfolio `netlify.toml`, re-trigger PR #10's
+  deploy preview, **browser-verify** (Pyodide boots; sliders drive the 4 panels;
+  Save run + `×` delete; Stock-and-flow tab renders; training bar), then merge.
+- If anything else throws in the browser, it's likely another Altair v5/v6 delta —
+  fix it the same cross-version way and re-cut.
