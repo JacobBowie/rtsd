@@ -52,10 +52,19 @@ What was **deliberately left behind** in `getpaid/`:
 
 ## marimo notebook (`python/rtsd/rtsd.py`)
 
-- Single-file Python port of the Shiny app via marimo.
-- Reactive: change a slider, downstream cells recompute.
-- Static export to WASM via `marimo export html-wasm rtsd.py -o rtsd.html` — runs in any browser, no server.
-- Same RP program generator as Shiny + R; verify both produce identical TRIMP schedules if you touch one.
+- Reactive Python surface. Change a slider, downstream cells recompute.
+- **Model logic lives in `python/rtsd/model.py`** (the single source of truth: `med_rhs`, `simulate`, scenario builders). The notebook's `_model` / `_scenarios` cells are thin `from model import ...` shims. Edit the model in `model.py`, never inline in the notebook.
+- **WASM export caveat — use the build script, never raw export.** `marimo export html-wasm` packages *only* `rtsd.py`; it does **not** bundle local module imports (`model.py`, `sd_diagram.py`; marimo issue #5488). A raw export throws `ModuleNotFoundError` in the browser. The fix is built: [`python/rtsd/build_wasm.py`](python/rtsd/build_wasm.py) inlines both modules (base64) into a `_bootstrap` cell and injects a `_boot` sentinel into the import cells so they run after it. Run `python python/rtsd/build_wasm.py --export` → `build/wasm/`. Validated for import resolution + cell execution, but **Pyodide runtime is unverified from source — verify in a browser on first deploy** (see `docs/handoff_netlify_deploy_2026_05_28.md`).
+- **WASM ≠ `marimo run`: package versions differ.** `marimo run` uses host Python (e.g. Altair 6); the WASM bundle uses Pyodide's own (Altair <5.5). A v0.2.0 bundle broke in-browser because the theme used the Altair ≥5.5 API — fixed with cross-version registration in `_imports` (see `docs/handoff_wasm_altair_fix_2026_05_28.md`). **The faithful local test is the exported dist** (`build_wasm.py --export` → serve `build/wasm/` and open in a browser), not `marimo run`. Keep notebook code to the oldest Altair API or feature-detect.
+- `marimo edit` / `marimo run` work fine (real Python resolves the local imports); only the WASM export path is affected.
+
+## Python↔R parity gate (`tests/parity/`)
+
+- Proves `python/rtsd/model.py` reproduces the validated R model (`R/simulate.R`, deSolve euler — the Vensim/PySD-anchored authority) within tolerance. This is what makes the Python/marimo surface safe to ship.
+- `cases.json` — shared spec read by both sides (identical inputs by construction). Layers: **L0** = pure ODE+Euler (constant forcing), **L1** = forcing discretization (explicit event list). L2 (full scenario-builder parity) is a future pass.
+- `generate_golden.R` — R writes committed golden trajectories to `golden/*.csv`. Run only when equations change: `docker compose run --rm parity-golden` (needs deSolve + jsonlite, in the image).
+- `test_parity.py` — pure-Python gate vs the goldens. Run on host (`python -m pytest tests/parity`) or via `docker compose run --rm parity`. Missing golden → skip, not fail.
+- Known divergences the gate guards: **D1** param key rename (`max_frac_rate` ↔ `maximal_fractional_rate`), **D2** grid endpoint (`np.arange` vs `seq`).
 
 ## Vensim source (`inst/vensim/MEDv4_secondary_signal.mdl`)
 

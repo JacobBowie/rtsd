@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # Repo + binary dispatch already wired via Rprofile.site above.
 RUN R -e "install.packages(c('shiny', 'bslib', 'ggplot2', 'patchwork', \
                              'dplyr', 'tidyr', 'tibble', 'deSolve', \
-                             'DiagrammeR')); \
+                             'DiagrammeR', 'jsonlite')); \
           stopifnot(requireNamespace('shiny',       quietly = TRUE), \
                     requireNamespace('bslib',       quietly = TRUE), \
                     requireNamespace('ggplot2',     quietly = TRUE), \
@@ -52,7 +52,8 @@ RUN R -e "install.packages(c('shiny', 'bslib', 'ggplot2', 'patchwork', \
                     requireNamespace('tidyr',       quietly = TRUE), \
                     requireNamespace('tibble',      quietly = TRUE), \
                     requireNamespace('deSolve',     quietly = TRUE), \
-                    requireNamespace('DiagrammeR',  quietly = TRUE))"
+                    requireNamespace('DiagrammeR',  quietly = TRUE), \
+                    requireNamespace('jsonlite',    quietly = TRUE))"
 
 # --- Python deps for the marimo notebook ------------------------------------
 # Isolated venv avoids the PEP 668 --break-system-packages escape hatch.
@@ -60,10 +61,15 @@ RUN R -e "install.packages(c('shiny', 'bslib', 'ggplot2', 'patchwork', \
 ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+# marimo >= 0.23.0 clears the actively-exploited pre-auth RCE CVE-2026-39987
+# (affects <= 0.20.4). altair + pandas back the interactive trajectory charts.
 RUN pip install --no-cache-dir \
-      marimo \
+      "marimo>=0.23.0" \
       numpy \
-      matplotlib
+      pandas \
+      altair \
+      matplotlib \
+      pytest
 
 # --- Project ----------------------------------------------------------------
 WORKDIR /rtsd

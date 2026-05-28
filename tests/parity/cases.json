@@ -1,0 +1,24 @@
+{
+  "_comment": "Shared parity-test spec. R generator (generate_golden.R) and Python test (test_parity.py) BOTH read this file, so inputs are identical by construction. Params use Python keys; the R generator maps max_frac_rate -> maximal_fractional_rate (divergence D1). Levels: L0 = pure ODE+Euler (constant forcing, identical by construction); L1 = forcing-discretization (same explicit event list through each side's pulse builder).",
+  "tolerance": {"rtol": 1e-06, "atol": 1e-09},
+  "params": {
+    "adaptation_rate": 0.02,
+    "adaptation_delay": 5.0,
+    "max_frac_rate": 0.02,
+    "Capacity": 200.0,
+    "tau_fatigue": 0.9473228823159101,
+    "tau_signal": 14.0,
+    "adl_trimp": 19.0,
+    "Baseline": 12.145
+  },
+  "cases": [
+    {"name": "L0_const0_linear",     "level": "L0", "variant": "linear",    "horizon": 48, "dt": 0.0625, "forcing": {"type": "constant", "value": 0.0}},
+    {"name": "L0_const0_quadratic",  "level": "L0", "variant": "quadratic", "horizon": 48, "dt": 0.0625, "forcing": {"type": "constant", "value": 0.0}},
+    {"name": "L0_const50_linear",    "level": "L0", "variant": "linear",    "horizon": 48, "dt": 0.0625, "forcing": {"type": "constant", "value": 50.0}},
+    {"name": "L0_const50_quadratic", "level": "L0", "variant": "quadratic", "horizon": 48, "dt": 0.0625, "forcing": {"type": "constant", "value": 50.0}},
+    {"name": "L1_events_linear",     "level": "L1", "variant": "linear",    "horizon": 12, "dt": 0.0625, "forcing": {"type": "events", "width": 0.14285714285714285, "times": [2.0, 4.0, 6.0, 8.0, 10.0], "heights": [81.0, 81.0, 81.0, 81.0, 81.0]}},
+    {"name": "L1_events_quadratic",  "level": "L1", "variant": "quadratic", "horizon": 12, "dt": 0.0625, "forcing": {"type": "events", "width": 0.14285714285714285, "times": [2.0, 4.0, 6.0, 8.0, 10.0], "heights": [81.0, 81.0, 81.0, 81.0, 81.0]}},
+    {"name": "daily_const50_linear",    "level": "L0", "variant": "linear",    "horizon": 48, "dt": 0.14285714285714285, "forcing": {"type": "constant", "value": 50.0}},
+    {"name": "daily_const50_quadratic", "level": "L0", "variant": "quadratic", "horizon": 48, "dt": 0.14285714285714285, "forcing": {"type": "constant", "value": 50.0}}
+  ]
+}

@@ -4,9 +4,25 @@
 
 **Status:** stable explorer + 7/7 reference-mode validator passing at v2 defaults. Three runtimes (Shiny / marimo / validator) all working via Docker.
 
+**Python↔R parity gate landed (2026-05-28):** the marimo/Python model now lives in `python/rtsd/model.py` (single source of truth) and is gated by `tests/parity/` — 8/8 passing at machine-epsilon (~4e-15) relative deviation vs the R/deSolve reference (L0 ODE-core, L1 forcing-discretization, and the daily-dt default). The grid is built `seq`-equivalent so Python matches R `seq()` at any dt (no `np.arange` overshoot). This is the precondition for shipping marimo as the public surface. See CLAUDE.md → "Python↔R parity gate".
+
+**marimo explorer redesigned into a dashboard (2026-05-28):** `mo.sidebar` + accordion controls + `mo.ui.tabs` + conditional reveal + interactive **altair** charts (shared theme, hover/zoom) + a `mo.state` snapshot overlay. Training-schedule bar sits atop the Trajectories tab. Defaults reworked to a *workable, illustrative* regime where Fitness grows: Baseline=60, Capacity=90 (static), **vol=400** (raised from 81 — FIT20 forcing is ~200× the Vensim scale; see the GET-PAID weights handoff memory), tau_fatigue=0.5, alpha=0.15, daily dt. These defaults are hand-picked demo values, NOT physically calibrated (absolute forcing scale unresolved — getpaid identifiability).
+
+**B / E / F landed (2026-05-28):**
+- **B — Snapshot annotation** ✓ named runs (`mo.ui.text` title) + per-run color + sidebar swatch legend + per-run delete. Save/compare regimes.
+- **E — WASM-inline build** ✓ `python/rtsd/build_wasm.py` inlines `model.py` + `sd_diagram.py` (base64) into a `_bootstrap` cell (#5488 workaround). Validated by exporting from a dir with no sibling modules → clean. `python build_wasm.py --export` → `build/wasm/`.
+- **F — Netlify handoff** ✓ `docs/handoff_netlify_deploy_2026_05_28.md` + root `netlify.toml`.
+
+**Remaining to ship:** a Netlify agent runs the deploy per the handoff and **verifies the WASM bundle in a browser** (Pyodide runtime unverified from source).
+
 **Next release** (v0.2) gated on:
+- **L2 scenario-builder parity** — current gate covers L0+L1; full `scenario_*` parity (R vs Python builders) is a future pass.
 - [verify] — sdviz spinoff scope decision
 - [verify] — whether to ship `inst/shiny/rtsd/R/` mirror-sync as an automated check
 - [verify] — landing of `posterior/` layer from the parent `getpaid/` hierarchical-calibration work
 
-**Active blockers / open threads:** none in this repo. Calibration work continues in `getpaid/`.
+**Active blockers / open threads:**
+- **Shiny "Try it live" link is broken.** README/CLAUDE.md point at `get-paid.shinyapps.io/rtsd/` (404 — never deployed under the new slug); the app is live at the old `get-paid.shinyapps.io/synthesim/`. Redeploy to `rtsd` or repoint the docs. (rsconnect creds present; `rsconnect` pkg missing in host R 4.6.0.)
+- **Shiny `app.R` defaults now out of sync with marimo** — only the marimo notebook got the GET-PAID weights + the 2026-05-28 default rework. Decide whether to sync app.R.
+- **FIT20 Performance-overlay CSV pending from GET-PAID** (handoff Part 3) — to bundle into the WASM build when delivered.
+- Calibration work continues in `getpaid/`.

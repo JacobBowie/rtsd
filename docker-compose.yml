@@ -41,3 +41,23 @@ services:
     volumes:
       - .:/rtsd
     command: Rscript tests/validate_reference_modes.R
+
+  # Regenerate the R golden trajectories (deSolve, the authoritative reference).
+  # Run only when the model equations change. Writes tests/parity/golden/*.csv.
+  parity-golden:
+    build: .
+    image: rtsd:latest
+    container_name: rtsd-parity-golden
+    volumes:
+      - .:/rtsd
+    command: Rscript tests/parity/generate_golden.R
+
+  # Run the Python<->R parity gate against the committed goldens.
+  # (Also runnable on the host: `python -m pytest tests/parity`.)
+  parity:
+    build: .
+    image: rtsd:latest
+    container_name: rtsd-parity
+    volumes:
+      - .:/rtsd
+    command: python3 -m pytest tests/parity -v

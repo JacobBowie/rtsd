@@ -1,0 +1,23 @@
+# Netlify build for rtSD Explorer (marimo WASM static bundle).
+#
+# The build inlines local modules (model.py, sd_diagram.py) into a
+# self-contained notebook, then exports to WASM — see python/rtsd/build_wasm.py
+# and docs/handoff_netlify_deploy_2026_05_28.md. marimo export html-wasm does
+# NOT bundle sibling imports on its own (marimo issue #5488).
+#
+# marimo >= 0.23.0 clears the actively-exploited pre-auth RCE CVE-2026-39987.
+# (WASM static exports have no server and are not themselves affected, but the
+# build environment still must use a patched version.)
+
+[build]
+  command = "pip install 'marimo>=0.23.0' numpy pandas altair matplotlib && python python/rtsd/build_wasm.py --export"
+  publish = "python/rtsd/build/wasm"
+
+[build.environment]
+  PYTHON_VERSION = "3.12"
+
+# Pyodide loads .wasm assets; serve them with the correct MIME type.
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
