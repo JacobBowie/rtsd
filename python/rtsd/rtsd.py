@@ -1,3 +1,18 @@
+# Build/deploy reproducibility: pinning marimo==0.23.3 pins Pyodide 0.27.5, whose
+# bundle is the WASM runtime — Altair 5.4.1 / pandas 2.2.3 / numpy 2.0.2. The
+# scientific deps below are intentionally UNPINNED: host-side `marimo edit --sandbox`
+# (Python 3.13) must resolve compatible versions (Altair 5.4.1 won't install on 3.13),
+# while the browser always gets Pyodide's bundled wheels regardless. See CLAUDE.md.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "marimo==0.23.3",
+#     "altair",
+#     "numpy",
+#     "pandas",
+#     "matplotlib",
+# ]
+# ///
 """rtSD Explorer — MEDv4 fitness-fatigue-signal explorer (marimo notebook).
 
 Reactive Python surface for the rtSD model. Same model + RP program generator

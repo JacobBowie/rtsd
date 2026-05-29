@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+# Reproducible build: `uv run --script build_wasm.py --export` provisions
+# marimo==0.23.3, which pins Pyodide 0.27.5 (→ Altair 5.4.1) in the exported WASM
+# bundle. Plain `python build_wasm.py` still works but uses whatever marimo is on
+# PATH — only the pinned invocation guarantees the deploy's runtime stack. See CLAUDE.md.
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["marimo==0.23.3"]
+# ///
 """Build a self-contained, WASM-exportable copy of the rtSD Explorer notebook.
 
 `marimo export html-wasm` bundles ONLY the notebook file — it does NOT include
@@ -19,14 +27,17 @@ script produces `build/rtsd_wasm.py`:
 The notebook's `from model import ...` / `from sd_diagram import ...` then
 resolve under Pyodide with no other edits.
 
-Usage:
-    python build_wasm.py            # write build/rtsd_wasm.py
-    python build_wasm.py --export   # also run `marimo export html-wasm`
+Usage (reproducible — pins marimo 0.23.3 → Pyodide 0.27.5 → Altair 5.4.1):
+    uv run --script build_wasm.py            # write build/rtsd_wasm.py
+    uv run --script build_wasm.py --export   # also run `marimo export html-wasm`
+
+Plain `python build_wasm.py [--export]` also works but uses the marimo on PATH.
 
 Edit rtsd.py / model.py / sd_diagram.py — NEVER the generated build file.
 """
 
 import base64
+import re
 import shutil
 import subprocess
 import sys
@@ -75,6 +86,14 @@ def _bootstrap_cell() -> str:
 
 def build() -> Path:
     nb = (HERE / "rtsd.py").read_text(encoding="utf-8")
+
+    # 0. Strip the PEP 723 inline-deps block (the leading comment block + script
+    #    metadata; see rtsd.py header). It pins marimo for `marimo edit --sandbox`
+    #    and `uv run` builds, but must NOT ride into the export input: `marimo
+    #    export html-wasm` detects inlined deps and prompts for a sandbox, which
+    #    aborts a non-interactive build. The browser resolves packages from
+    #    marimo's import auto-detection, not this block.
+    nb = re.sub(r"\A(?:#.*\n)*?# /// script\n(?:#.*\n)*?# ///\n", "", nb, count=1)
 
     # 1. Insert the bootstrap cell right after the App() line.
     out, inserted = [], False
