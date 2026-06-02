@@ -53,36 +53,103 @@ def _imports():
     # Assign to _ so the registry repr isn't rendered as this cell's output.
     _ = alt.data_transformers.disable_max_rows()
 
-    # Shared chart theme. CROSS-VERSION: alt.theme.register / alt.theme.ThemeConfig
-    # are Altair >=5.5; Pyodide (the WASM runtime) ships older 5.x with only the
-    # alt.themes registry. _imports is the root cell, so using the 5.5+ API
-    # unconditionally blanks the entire WASM bundle (AttributeError cascade).
-    # Both APIs accept a plain dict — no ThemeConfig wrapper.
-    # See docs/handoff_wasm_altair_fix_2026_05_28.md.
-    _RTSD_THEME = {
+    # Two registered chart themes, toggled live via the sidebar "Plot style"
+    # control (see _ui_theme / _theme). Both are GraphPad-Prism-flavored:
+    #   - "Prism"      : heavy black L-axes, no gridlines, outward ticks, Arial
+    #                    bold, offset/"open" axes (the offset look is experimental).
+    #   - "Prism-lite" : softer (#222) axes, faint y-grid, no offset.
+    # CROSS-VERSION: alt.theme.register (Altair >=5.5) vs the alt.themes registry
+    # (<5.5, what Pyodide 0.27.5 ships). _imports is the root cell, so touching a
+    # 5.5-only API here would blank the whole WASM bundle. Both registries accept
+    # a plain dict. See docs/handoff_wasm_altair_fix_2026_05_28.md.
+    _THEME_PRISM = {
         "config": {
             "view": {"stroke": "transparent"},
             "axis": {
-                "labelFontSize": 11, "titleFontSize": 12, "titleFontWeight": "normal",
-                "labelColor": "#555555", "titleColor": "#333333", "gridColor": "#ededed",
-                "domainColor": "#d0d0d0", "tickColor": "#d0d0d0",
+                "domainColor": "#000000", "domainWidth": 2.5,
+                "tickColor": "#000000", "tickWidth": 2, "tickSize": 7,
+                "labelColor": "#000000", "labelFontSize": 12, "labelFont": "Arial",
+                "titleColor": "#000000", "titleFontSize": 14,
+                "titleFontWeight": "bold", "titleFont": "Arial",
+                "grid": False, "offset": 6,
             },
             "axisX": {"grid": False},
+            "axisY": {"grid": False},
+            "title": {
+                "fontSize": 15, "fontWeight": "bold", "color": "#000000",
+                "anchor": "start", "offset": 12, "font": "Arial",
+            },
+            "legend": {
+                "labelFontSize": 12, "titleFontSize": 13, "titleColor": "#000000",
+                "labelColor": "#000000", "labelFont": "Arial", "titleFont": "Arial",
+            },
+            "background": "white",
+            "font": "Arial",
+            "line": {"strokeWidth": 3},
+        }
+    }
+    _THEME_PRISM_LITE = {
+        "config": {
+            "view": {"stroke": "transparent"},
+            "axis": {
+                "domainColor": "#222222", "domainWidth": 1.5,
+                "tickColor": "#222222", "tickWidth": 1.5, "tickSize": 5,
+                "labelColor": "#333333", "labelFontSize": 11,
+                "labelFont": "Arial, system-ui",
+                "titleColor": "#222222", "titleFontSize": 12,
+                "titleFontWeight": 600, "titleFont": "Arial, system-ui",
+                "grid": False,
+            },
+            "axisX": {"grid": False},
+            "axisY": {"grid": True, "gridColor": "#eeeeee", "gridWidth": 1},
             "title": {
                 "fontSize": 14, "fontWeight": "bold", "color": "#222222",
-                "anchor": "start", "offset": 10,
+                "anchor": "start", "offset": 10, "font": "Arial, system-ui",
             },
             "legend": {"labelFontSize": 11, "titleFontSize": 12, "titleColor": "#333333"},
             "background": "white",
-            "font": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+            "font": "Arial, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+            "line": {"strokeWidth": 2.8},
         }
     }
-    if hasattr(getattr(alt, "theme", None), "register"):
-        alt.theme.register("rtsd", enable=True)(lambda: _RTSD_THEME)  # Altair >=5.5 / 6
-    else:
-        alt.themes.register("rtsd", lambda: _RTSD_THEME)              # Altair <5.5 (Pyodide)
-        alt.themes.enable("rtsd")
-    return alt, mo, np, pd, plt
+    _THEMES = {"rtsd_prism": _THEME_PRISM, "rtsd_prism_lite": _THEME_PRISM_LITE}
+    _new_api = hasattr(getattr(alt, "theme", None), "register")
+    for _tname, _tcfg in _THEMES.items():
+        if _new_api:
+            alt.theme.register(_tname, enable=False)(lambda _c=_tcfg: _c)  # >=5.5 / 6
+        else:
+            alt.themes.register(_tname, lambda _c=_tcfg: _c)               # <5.5 (Pyodide)
+
+    def enable_theme(_name):
+        """Activate one of the registered themes (cross-version)."""
+        if _new_api:
+            alt.theme.enable(_name)
+        else:
+            alt.themes.enable(_name)
+        return _name
+
+    return alt, enable_theme, mo, np, pd, plt
+
+
+@app.cell
+def _ui_theme(mo):
+    """Sidebar 'Plot style' toggle — flips between the two registered Prism themes."""
+    theme_choice = mo.ui.radio(
+        options=["Prism", "Prism-lite"],
+        value="Prism",
+        label="Plot style",
+    )
+    return (theme_choice,)
+
+
+@app.cell
+def _theme(enable_theme, theme_choice):
+    """Activate the chosen theme. Chart cells take active_theme so they re-render
+    when the toggle flips (Altair applies the globally-active theme at render)."""
+    active_theme = enable_theme(
+        "rtsd_prism" if theme_choice.value == "Prism" else "rtsd_prism_lite"
+    )
+    return (active_theme,)
 
 
 @app.cell
@@ -151,7 +218,7 @@ def _ui_controls(mo):
         value="Standard weekly",
         label="Training scenario",
     )
-    horizon = mo.ui.slider(4, 200, value=48, step=1, label="Horizon (weeks)", show_value=True)
+    horizon = mo.ui.slider(4, 200, value=26, step=1, label="Horizon (weeks)", show_value=True)
     dt = mo.ui.dropdown(
         options={
             "Daily (1/7 wk)": "0.14285714285714285",
@@ -456,6 +523,7 @@ def _sidebar(
     snapshot_btn,
     tau_fatigue,
     tau_signal,
+    theme_choice,
     variant,
     vol,
 ):
@@ -488,6 +556,7 @@ def _sidebar(
         [
             mo.md("## rtSD Explorer"),
             mo.md("*MEDv4 fitness-fatigue-signal model*"),
+            theme_choice,
             _controls,
             mo.md("---"),
             mo.md("**Compare regimes** — save the current run to overlay it"),
@@ -502,6 +571,7 @@ def _sidebar(
 
 @app.cell
 def _traj_chart(
+    active_theme,
     Fatigue,
     Fitness,
     Performance,
@@ -513,8 +583,10 @@ def _traj_chart(
     np,
     pd,
 ):
-    """Interactive 4-panel trajectory chart (altair). Live run in color;
-    saved snapshots overlaid as gray lines."""
+    """Interactive trajectory view: a combined normalized overlay (hover-scrubber
+    + legend click-to-highlight) atop the 2x2 per-stock detail panels. Live run in
+    color; saved snapshots overlaid as gray lines in the detail panels."""
+    _ = active_theme  # depend on the toggle so the chart re-renders on theme switch
     _stocks = list(STOCK_COLORS.keys())
     _live = pd.DataFrame(
         {
@@ -523,6 +595,13 @@ def _traj_chart(
             "stock": np.repeat(_stocks, len(grid_t)),
         }
     )
+    # Per-stock min-max normalization for the shared overlay axis (compares shape
+    # across stocks of different magnitudes); the raw value is retained for the
+    # scrubber/tooltip readout so absolute magnitudes aren't lost.
+    def _minmax(_s):
+        _lo, _hi = _s.min(), _s.max()
+        return (_s - _lo) / (_hi - _lo) if _hi > _lo else _s * 0.0
+    _live["value_norm"] = _live.groupby("stock")["value"].transform(_minmax)
 
     _snap_list = get_snaps()
     _snap_frames = []
@@ -551,6 +630,14 @@ def _traj_chart(
         range=[s["color"] for s in _snap_list],
     )
 
+    # Interval brush on x: drag on the overlay to set the x-domain of the 2x2
+    # detail panels (linked zoom). Defined BEFORE _panel def so the closure
+    # reference inside _panel resolves at call time — marimo executes the cell
+    # body at module level, so the comprehension `[_panel(s) for s in _stocks]`
+    # runs eagerly and would NameError if brush were defined later (it was).
+    # Non-underscored name keeps marimo's cell-local mangling out of the closure.
+    brush = alt.selection_interval(name="brush", encodings=["x"])
+
     # One independent chart per stock, arranged 2x2. Per-panel charts (rather
     # than a faceted layered chart) are required because altair cannot facet a
     # layer whose sub-layers have different data (live vs. snapshot rows).
@@ -562,7 +649,7 @@ def _traj_chart(
                 alt.Chart(_ss)
                 .mark_line(strokeWidth=1.3, opacity=0.75)
                 .encode(
-                    x=alt.X("time:Q", title="Time (weeks)"),
+                    x=alt.X("time:Q", title="Time (weeks)", scale=alt.Scale(domain=brush)),
                     y=alt.Y("value:Q", title=_stock, scale=alt.Scale(zero=False)),
                     color=alt.Color("sid:N", scale=_snap_color, legend=None),
                     detail="sid:N",
@@ -577,7 +664,7 @@ def _traj_chart(
             alt.Chart(_ls)
             .mark_line(strokeWidth=2.5, color=STOCK_COLORS[_stock])
             .encode(
-                x=alt.X("time:Q", title="Time (weeks)"),
+                x=alt.X("time:Q", title="Time (weeks)", scale=alt.Scale(domain=brush)),
                 y=alt.Y("value:Q", title=_stock, scale=alt.Scale(zero=False)),
                 tooltip=[
                     alt.Tooltip("time:Q", title="Week", format=".2f"),
@@ -587,26 +674,83 @@ def _traj_chart(
         )
         _chart = _layers[0] if len(_layers) == 1 else alt.layer(*_layers)
         _chart = _chart.properties(width=380, height=220, title=_stock)
-        # interactive(name=) gives independent per-panel zoom on Altair 5.x+.
-        # Guard it: if a particular Altair build rejects the call, fall back to a
-        # static panel (tooltips still work) rather than break the Trajectories
-        # tab. Belt-and-braces alongside the cross-version theme fix in _imports.
-        try:
-            return _chart.interactive(name="zoom_" + _stock)
-        except Exception:
-            return _chart
+        # Stage 2b: per-panel .interactive() removed — the overview brush is the
+        # time-zoom mechanism now (and avoids a drag-vs-drag conflict). x-scale
+        # follows the brush; y stays bound to the full data range (predictable
+        # context; switch to transform_filter(brush) if y auto-fit is wanted).
+        return _chart
 
     _panels = [_panel(s) for s in _stocks]
-    traj_chart = alt.vconcat(
+    _grid = alt.vconcat(
         alt.hconcat(_panels[0], _panels[1]),
         alt.hconcat(_panels[2], _panels[3]),
     )
+
+    # --- Combined normalized overlay (single dataset -> safe to carry params).
+    # All interactions here are client-side Vega (we render the alt chart directly,
+    # not via mo.ui.altair_chart), so marimo's selection-readback limits (#2901)
+    # don't apply. Param API is Altair >=5.0 -> runs on Pyodide's 5.4.1.
+    # See notebook/research_sdviz_interactivity_2026_05_28.md.
+    _color = alt.Color(
+        "stock:N",
+        scale=alt.Scale(domain=_stocks, range=[STOCK_COLORS[s] for s in _stocks]),
+        legend=alt.Legend(title="Stock", orient="top"),
+    )
+    # Hover scrubber: a transparent x-spanning selector drives a nearest-in-x point
+    # selection; a rule + per-stock points + raw-value text reveal on mouseover.
+    _hover = alt.selection_point(
+        name="hover", on="mouseover", nearest=True, encodings=["x"],
+        empty=False, clear="mouseout",
+    )
+    # Legend click isolates a stock (others fade to 0.12 opacity).
+    _hl = alt.selection_point(name="highlight", fields=["stock"], bind="legend")
+
+    _ov_base = alt.Chart(_live).encode(x=alt.X("time:Q", title="Time (weeks)"))
+    # add_params(_hl) MUST be on the chart carrying the color encoding (the
+    # lines), not the transparent selectors layer — that's where bind="legend"
+    # finds the matching legend to wire the click into.
+    _ov_lines = (
+        _ov_base.mark_line(strokeWidth=2.5).encode(
+            y=alt.Y(
+                "value_norm:Q", title="Normalized (per-stock min–max)",
+                scale=alt.Scale(domain=[0, 1]),
+            ),
+            color=_color,
+            opacity=alt.condition(_hl, alt.value(1.0), alt.value(0.12)),
+        ).add_params(_hl)
+    )
+    _ov_selectors = (
+        _ov_base.mark_point()
+        .encode(y=alt.Y("value_norm:Q"), opacity=alt.value(0))
+        .add_params(_hover, brush)
+    )
+    _ov_rule = (
+        alt.Chart(_live).mark_rule(color="#888888", strokeWidth=1)
+        .encode(x="time:Q").transform_filter(_hover)
+    )
+    _ov_points = _ov_base.mark_point(size=55, filled=True).encode(
+        y="value_norm:Q", color=_color,
+        opacity=alt.condition(_hover, alt.value(1), alt.value(0)),
+    )
+    _ov_text = _ov_base.mark_text(align="left", dx=7, dy=-8, fontWeight="bold").encode(
+        y="value_norm:Q", color=_color,
+        text=alt.condition(_hover, alt.Text("value:Q", format=".1f"), alt.value("")),
+    )
+    overlay = alt.layer(
+        _ov_lines, _ov_selectors, _ov_rule, _ov_points, _ov_text
+    ).properties(
+        width=780, height=260,
+        title="All stocks (normalized) — hover to scrub · click a legend entry to isolate · drag to zoom the detail panels below",
+    )
+
+    traj_chart = alt.vconcat(overlay, _grid).resolve_scale(color="independent")
     return (traj_chart,)
 
 
 @app.cell
-def _training_chart(alt, grid_t, pd, scenario, sched):
+def _training_chart(active_theme, alt, grid_t, pd, scenario, sched):
     """Training-schedule bar chart (altair)."""
+    _ = active_theme  # re-render on theme toggle
     _df = pd.DataFrame({"time": grid_t, "TRIMP": sched})
     training_chart = (
         alt.Chart(_df)

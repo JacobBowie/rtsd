@@ -8,7 +8,7 @@
   <em>RM1 (dose-response): doubling weekly training volume produces a larger steady-state Fitness gain. One of seven physiological reference modes the simulator must satisfy.</em>
 </p>
 
-[**Try it live (Shiny):** get-paid.shinyapps.io/rtsd](https://get-paid.shinyapps.io/rtsd/) · [Run locally](#run-locally) · [What's inside](#whats-inside) · [Theory](docs/theory.md) · [Citation](CITATION.cff)
+[**Try it live (Shiny)** ↗](https://get-paid.shinyapps.io/synthesim/) · [Run locally](#run-locally) · [What's inside](#whats-inside) · [Theory](docs/theory.md) · [Citation](CITATION.cff)
 
 ---
 
@@ -92,18 +92,22 @@ The Shiny app is **self-contained** — `inst/shiny/rtsd/R/` carries its own cop
 
 ### Marimo (Python, also exports to in-browser WASM)
 
+The marimo notebook is the interactive surface: a Prism-themed dashboard with a combined normalized-stocks overlay, a hover-scrubber readout, click-to-highlight on the legend, and an x-interval brush that linked-zooms the four detail panels.
+
 ```bash
-pip install marimo numpy matplotlib
+# Reproducible WASM build (uv reads the PEP 723 block in build_wasm.py and
+# provisions marimo 0.23.3 -> Pyodide 0.27.5 -> Altair 5.4.1). Requires uv:
+uv run --script python/rtsd/build_wasm.py --export
 
-# Interactive edit mode:
+# Serve the dist and open it in a browser:
+python -m http.server 8000 -d python/rtsd/build/wasm
+# then visit http://localhost:8000
+
+# Interactive edit mode (host marimo; uses host package versions, NOT Pyodide's):
 python -m marimo edit python/rtsd/rtsd.py
-
-# Read-only run mode:
-python -m marimo run python/rtsd/rtsd.py
-
-# Export a static WASM build (Pyodide; runs in any browser):
-python -m marimo export html-wasm python/rtsd/rtsd.py -o build/index.html --mode run
 ```
+
+`build_wasm.py` inlines the local module imports (`model.py`, `sd_diagram.py`) into a self-contained notebook before export — `marimo export html-wasm` doesn't bundle sibling files on its own (marimo issue #5488). Locally-served dist == Netlify deploy because the build toolchain is pinned; opening `localhost:8000` is a faithful proxy for the deployed runtime.
 
 ### Reference-mode validator
 
