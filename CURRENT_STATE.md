@@ -13,7 +13,7 @@
 - **E — WASM-inline build** ✓ `python/rtsd/build_wasm.py` inlines `model.py` + `sd_diagram.py` (base64) into a `_bootstrap` cell (#5488 workaround). Validated by exporting from a dir with no sibling modules → clean. `python build_wasm.py --export` → `build/wasm/`.
 - **F — Netlify handoff** ✓ `docs/handoff_netlify_deploy_2026_05_28.md` + root `netlify.toml`.
 
-**Remaining to ship:** a Netlify agent runs the deploy per the handoff and **verifies the WASM bundle in a browser** (Pyodide runtime unverified from source).
+**Shipped (2026-06-03):** rtsd `v0.2.2` (interactive Prism trajectory dashboard) released; `jacobbowie-site` bumped `RTSD_TAG=v0.2.2`; deploy-preview browser-verified; merged to production. Live at <https://jacobbowie.com/rtsd/>.
 
 **Next release** (v0.2) gated on:
 - **L2 scenario-builder parity** — current gate covers L0+L1; full `scenario_*` parity (R vs Python builders) is a future pass.
@@ -22,7 +22,7 @@
 - [verify] — landing of `posterior/` layer from the parent `getpaid/` hierarchical-calibration work
 
 **Active blockers / open threads:**
-- **Shiny "Try it live" link is broken.** README/CLAUDE.md point at `get-paid.shinyapps.io/rtsd/` (404 — never deployed under the new slug); the app is live at the old `get-paid.shinyapps.io/synthesim/`. Redeploy to `rtsd` or repoint the docs. (rsconnect creds present; `rsconnect` pkg missing in host R 4.6.0.)
+- **Shiny app decommissioned (2026-06-03).** The `get-paid.shinyapps.io/synthesim/` app was terminated via `rsconnect::terminateApp`; both shinyapps slugs now 404. Canonical "Try it live" is the marimo/WASM build at `https://jacobbowie.com/rtsd/` (README/CITATION/DESCRIPTION repointed there in v0.2.2). Shiny source remains in `inst/shiny/rtsd/`, redeployable if ever needed.
 - **Shiny `app.R` defaults now out of sync with marimo** — only the marimo notebook got the GET-PAID weights + the 2026-05-28 default rework. Decide whether to sync app.R.
 - **FIT20 Performance-overlay CSV pending from GET-PAID** (handoff Part 3) — to bundle into the WASM build when delivered.
 - Calibration work continues in `getpaid/`.

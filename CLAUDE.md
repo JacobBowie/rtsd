@@ -48,7 +48,7 @@ What was **deliberately left behind** in `getpaid/`:
 
 - **Self-contained.** `inst/shiny/rtsd/R/` carries its own copy of the simulator R files so the app deploys standalone to shinyapps.io without needing the package installed.
 - This means changes to `R/*.R` at repo root need to be **mirrored** into `inst/shiny/rtsd/R/`. Not automated — easy to forget.
-- Deployment: `https://get-paid.shinyapps.io/rtsd/`
+- **Not currently hosted.** The `synthesim` shinyapps.io app was terminated 2026-06-03; the canonical interactive demo is the marimo/WASM build at `https://jacobbowie.com/rtsd/`. This Shiny app is redeployable to shinyapps.io from this dir if ever needed.
 
 ## marimo notebook (`python/rtsd/rtsd.py`)
 

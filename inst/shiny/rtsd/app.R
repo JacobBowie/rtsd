@@ -4,7 +4,8 @@
 #' fitness-fatigue-signal ODE through deterministic forward simulation
 #' driven by sliders. The Shiny surface of the rtSD model
 #' (system-dynamics implementation of GET-PAID for resistance training).
-#' Live deployment at https://get-paid.shinyapps.io/rtsd/ .
+#' Canonical hosted demo is the marimo/WASM build at https://jacobbowie.com/rtsd/ ;
+#' this Shiny app is runnable locally (below) or deployable to shinyapps.io.
 #'
 #' Run from project root:
 #'   shiny::runApp("inst/shiny/rtsd")
