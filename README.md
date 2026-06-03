@@ -8,7 +8,7 @@
   <em>RM1 (dose-response): doubling weekly training volume produces a larger steady-state Fitness gain. One of seven physiological reference modes the simulator must satisfy.</em>
 </p>
 
-[**Try it live (Shiny)** ↗](https://get-paid.shinyapps.io/synthesim/) · [Run locally](#run-locally) · [What's inside](#whats-inside) · [Theory](docs/theory.md) · [Citation](CITATION.cff)
+[**Try it live** ↗](https://jacobbowie.com/rtsd/) · [Run locally](#run-locally) · [What's inside](#whats-inside) · [Theory](docs/theory.md) · [Citation](CITATION.cff)
 
 ---
 
@@ -45,7 +45,7 @@ It's an open-science explainer, packaged as a tool.
 
 | Path | What it is |
 |---|---|
-| [`inst/shiny/rtsd/`](inst/shiny/rtsd/) | The Shiny app. Self-contained R; deployable on shinyapps.io. Live at the URL above. |
+| [`inst/shiny/rtsd/`](inst/shiny/rtsd/) | The Shiny app. Self-contained R; deployable on shinyapps.io. (The hosted "Try it live" link above is the zero-install marimo/WASM build.) |
 | [`python/rtsd/rtsd.py`](python/rtsd/rtsd.py) | Marimo notebook port. Same model + UI; exports to WASM so it runs in a browser with no server. |
 | [`python/rtsd/sd_diagram.py`](python/rtsd/sd_diagram.py) | A Vensim-style stock-and-flow diagrammer (matplotlib). |
 | [`R/med_ode.R`](R/med_ode.R) | The MEDv4 ODE right-hand side. Two variants: original (quadratic) + linear. |

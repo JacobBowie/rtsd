@@ -5,12 +5,17 @@
 # and docs/handoff_netlify_deploy_2026_05_28.md. marimo export html-wasm does
 # NOT bundle sibling imports on its own (marimo issue #5488).
 #
-# marimo >= 0.23.0 clears the actively-exploited pre-auth RCE CVE-2026-39987.
-# (WASM static exports have no server and are not themselves affected, but the
-# build environment still must use a patched version.)
+# marimo is pinned to ==0.23.3 (not merely >=0.23.0) so the Netlify build's
+# Pyodide/Altair runtime stack matches build_wasm.py + the local build EXACTLY
+# (marimo 0.23.3 → Pyodide 0.27.5 → Altair 5.4.1). A looser floor lets pip pull
+# a newer marimo whose Pyodide bundles a different Altair, re-triggering the
+# v5/v6 theme-API skew that blanked the v0.2.0 bundle in-browser. See CLAUDE.md
+# → "marimo notebook". 0.23.3 also clears the actively-exploited pre-auth RCE
+# CVE-2026-39987 (WASM static exports have no server and aren't themselves
+# affected, but the build environment must still use a patched version).
 
 [build]
-  command = "pip install 'marimo>=0.23.0' numpy pandas altair matplotlib && python python/rtsd/build_wasm.py --export"
+  command = "pip install 'marimo==0.23.3' numpy pandas altair matplotlib && python python/rtsd/build_wasm.py --export"
   publish = "python/rtsd/build/wasm"
 
 [build.environment]

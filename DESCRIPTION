@@ -13,7 +13,7 @@ Description: A deterministic forward-simulator for the MEDv4
     (Renaissance Periodization mesocycles, return-from-break,
     detraining, custom event lists).
 License: MIT + file LICENSE
-URL: https://github.com/JacobBowie/rtsd, https://get-paid.shinyapps.io/rtsd/
+URL: https://github.com/JacobBowie/rtsd, https://jacobbowie.com/rtsd/
 BugReports: https://github.com/JacobBowie/rtsd/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
