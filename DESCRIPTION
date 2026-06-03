@@ -1,6 +1,6 @@
 Package: rtSD
 Title: System-Dynamics Model of Resistance-Training Adaptation (rtSD Explorer)
-Version: 0.1.0
+Version: 0.2.2
 Authors@R:
     person("Jacob", "Bowie", email = "jacob.bowie2@gmail.com",
            role = c("aut", "cre"))
