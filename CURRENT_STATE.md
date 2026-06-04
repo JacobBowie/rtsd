@@ -1,6 +1,6 @@
 # Current state — rtSD Explorer
 
-**v0.1.0** public (released as `synthesim` 2026-05-12; renamed to `rtSD Explorer` 2026-05-26 — same code, same model, just the brand).
+**v0.2.2** public (first released as `synthesim` v0.1.0 2026-05-12; renamed to `rtSD Explorer` / repo `JacobBowie/rtsd` 2026-05-26 — same model, just the brand; `v0.2.2` = interactive Prism dashboard, 2026-06-03).
 
 **Status:** stable explorer + 7/7 reference-mode validator passing at v2 defaults. Three runtimes (Shiny / marimo / validator) all working via Docker.
 
@@ -15,7 +15,7 @@
 
 **Shipped (2026-06-03):** rtsd `v0.2.2` (interactive Prism trajectory dashboard) released; `jacobbowie-site` bumped `RTSD_TAG=v0.2.2`; deploy-preview browser-verified; merged to production. Live at <https://jacobbowie.com/rtsd/>.
 
-**Next release** (v0.2) gated on:
+**Next release** (v0.3) gated on:
 - **L2 scenario-builder parity** — current gate covers L0+L1; full `scenario_*` parity (R vs Python builders) is a future pass.
 - [verify] — sdviz spinoff scope decision
 - [verify] — whether to ship `inst/shiny/rtsd/R/` mirror-sync as an automated check
