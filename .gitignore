@@ -40,3 +40,7 @@ Thumbs.db
 # Cross-agent/session working notes; NOT public-repo content. Kept on disk for
 # local coordination but never committed/pushed.
 notebook/
+
+# Orientation files: local session tooling, never public (~/.claude convention)
+CLAUDE.md
+CURRENT_STATE.md
