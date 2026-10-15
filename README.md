@@ -48,6 +48,7 @@ It's an open-science explainer, packaged as a tool.
 | [`inst/shiny/rtsd/`](inst/shiny/rtsd/) | The Shiny app. Self-contained R; deployable on shinyapps.io. (The hosted "Try it live" link above is the zero-install marimo/WASM build.) |
 | [`python/rtsd/rtsd.py`](python/rtsd/rtsd.py) | Marimo notebook port. Same model + UI; exports to WASM so it runs in a browser with no server. |
 | [`python/rtsd/sd_diagram.py`](python/rtsd/sd_diagram.py) | A Vensim-style stock-and-flow diagrammer (matplotlib). |
+| [`python/rtsd/render_figures.py`](python/rtsd/render_figures.py) | Renders the static showcase figures (hero, social card, tile) from `model.py` in the explorer's Prism style. `uv run --script python/rtsd/render_figures.py` |
 | [`R/med_ode.R`](R/med_ode.R) | The MEDv4 ODE right-hand side. Two variants: original (quadratic) + linear. |
 | [`R/simulate.R`](R/simulate.R) | High-level simulator wrapper around `deSolve::ode`. |
 | [`R/scenarios.R`](R/scenarios.R) | Composable scenario builders: weekly training, detraining, return-from-break, custom event lists. |
@@ -56,7 +57,7 @@ It's an open-science explainer, packaged as a tool.
 | [`tests/validate_reference_modes.R`](tests/validate_reference_modes.R) | Driver: runs the validator and writes `results.csv` + figures. |
 | [`inst/vensim/MEDv4_secondary_signal.mdl`](inst/vensim/MEDv4_secondary_signal.mdl) | Read-only copy of the source Vensim model (provenance). |
 | [`docs/theory.md`](docs/theory.md) | Plain-English explainer of the MEDv4 equations and what the seven reference modes test. |
-| [`docs/figures/`](docs/figures/) | RM1, RM4, RM5 validator output PNGs. |
+| [`docs/figures/`](docs/figures/) | RM1, RM4, RM5 validator output PNGs (Prism-styled via `R/theme_rtsd_prism.R`), plus the `rtsd-hero`, `rtsd-card` and `rtsd-tile` showcase PNGs. |
 | [`Dockerfile`](Dockerfile) + [`docker-compose.yml`](docker-compose.yml) | Reproducible runtime — R 4.5.2 + Python + all deps, one image, three entrypoints (Shiny / marimo / validator). |
 
 ## Run locally
