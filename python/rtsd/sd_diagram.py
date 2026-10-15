@@ -87,7 +87,7 @@ def draw_cloud(ax, x, y, scale=0.6):
 
 
 def draw_flow(ax, src_xy, dst_xy, label=None, valve_radius=0.16,
-              arrow_size=0.10, label_offset=(0, 0.30)):
+              arrow_size=0.10, label_offset=(0, 0.30), fontsize=10):
     """Vensim flow: thick pipe from src to dst with a valve+bowtie in middle.
 
     src and dst can be (x, y) of any anchor (typically a cloud center or a
@@ -151,7 +151,7 @@ def draw_flow(ax, src_xy, dst_xy, label=None, valve_radius=0.16,
     if label is not None:
         ax.text(
             mid[0] + label_offset[0], mid[1] + label_offset[1], label,
-            ha="center", va="center", fontsize=10, fontweight="bold",
+            ha="center", va="center", fontsize=fontsize, fontweight="bold",
             color=COLOR_FLOW, zorder=6,
             bbox=dict(boxstyle="square,pad=0.15", facecolor="white",
                       edgecolor="none", alpha=0.95),
@@ -159,7 +159,7 @@ def draw_flow(ax, src_xy, dst_xy, label=None, valve_radius=0.16,
 
 
 def draw_param(ax, x, y, label, fontsize=10):
-    """Vensim auxiliary / parameter: plain italic-ish text, no shape."""
+    """Vensim constant / parameter: plain italic text, no shape."""
     ax.text(
         x, y, label, ha="center", va="center",
         fontsize=fontsize, fontstyle="italic", color=COLOR_PARAM, zorder=4,
@@ -168,8 +168,33 @@ def draw_param(ax, x, y, label, fontsize=10):
     )
 
 
-def draw_causal(ax, src_xy, dst_xy, polarity=None, curvature=0.20):
-    """Vensim causal-link arrow: thin curved Bézier with optional ± label."""
+def draw_aux(ax, x, y, label, fontsize=10):
+    """Vensim auxiliary (a computed variable, not a constant): upright dark
+    text, no shape. Distinguished from draw_param's italic constants."""
+    ax.text(
+        x, y, label, ha="center", va="center",
+        fontsize=fontsize, fontweight="bold", color=COLOR_STOCK_EDGE, zorder=4,
+        bbox=dict(boxstyle="round,pad=0.2", facecolor="white",
+                  edgecolor="none", alpha=0.9),
+    )
+
+
+def _toward(src_xy, dst_xy, gap):
+    """Point `gap` short of dst along the src→dst line, so a causal arrow ends
+    at a valve's rim (gap = valve radius + clearance) instead of its center."""
+    src = np.asarray(src_xy, dtype=float)
+    dst = np.asarray(dst_xy, dtype=float)
+    d = dst - src
+    n = np.linalg.norm(d)
+    return tuple(dst - d / n * gap) if n > 1e-9 else tuple(dst)
+
+
+def draw_causal(ax, src_xy, dst_xy, polarity=None, curvature=0.20, nudge=0.18,
+                fontsize=12, show_sign=True):
+    """Vensim causal-link arrow: thin curved Bézier with optional ± label.
+    `nudge` offsets the ± label perpendicular to the link; flip its sign to
+    move the label to the other side (e.g. off a flow pipe). `show_sign=False`
+    keeps the polarity color but omits the ± glyph."""
     color = {
         "+": COLOR_CAUSAL_POS,
         "-": COLOR_CAUSAL_NEG,
@@ -181,7 +206,7 @@ def draw_causal(ax, src_xy, dst_xy, polarity=None, curvature=0.20):
         color=color, linewidth=1.2, alpha=0.85, zorder=1,
     )
     ax.add_patch(arrow)
-    if polarity in ("+", "-"):
+    if show_sign and polarity in ("+", "-"):
         # Place the polarity label near the arrowhead
         sx, sy = src_xy
         dx, dy = dst_xy
@@ -193,11 +218,11 @@ def draw_causal(ax, src_xy, dst_xy, polarity=None, curvature=0.20):
         norm = np.linalg.norm(perp)
         if norm > 1e-6:
             perp = perp / norm
-        lx += perp[0] * 0.18
-        ly += perp[1] * 0.18
+        lx += perp[0] * nudge
+        ly += perp[1] * nudge
         ax.text(
             lx, ly, polarity, ha="center", va="center",
-            fontsize=12, fontweight="bold", color=color, zorder=5,
+            fontsize=fontsize, fontweight="bold", color=color, zorder=5,
         )
 
 
@@ -206,16 +231,29 @@ def draw_causal(ax, src_xy, dst_xy, polarity=None, curvature=0.20):
 # ---------------------------------------------------------------------------
 
 
-def draw_medv4_diagram(ax=None, figsize=(13, 8), title=None):
+def draw_medv4_diagram(ax=None, figsize=(13, 8), title=None, show_key=True,
+                       fontscale=1.0, detail=True):
     """Render the MEDv4 stock-and-flow diagram in Vensim aesthetic.
 
-    Three stocks (Fitness, Fatigue, Signal) arranged left-to-right with
-    flow pipes, clouds for TRIMP source and sinks, and causal links from
-    parameters to flows.
+    Three stocks (Fatigue, Signal, Fitness) with flow pipes, clouds for
+    sources and sinks, and a causal link for every term in model.med_rhs:
+
+      effective TRIMP = training + adl_trimp      (inflow to Fatigue AND Signal)
+      recovery        = Fatigue / tau_fatigue
+      adaptation      = f(Signal, adaptation_rate, adaptation_delay)
+      signal loss     = f(Signal, tau_signal)
+      atrophy         = f(Fitness, max_frac_rate, Capacity)
+      Performance     = Fitness - alpha * Fatigue  (readout, not a stock)
+
+    Pass `title=""` to suppress the title and `show_key=False` to drop the
+    notation key (e.g. when composing into a larger figure). For a small
+    rendering (a page hero), `detail=False` drops the parameters and their
+    links so `fontscale` can enlarge the remaining labels without collisions.
 
     Returns the Figure object.
     """
-    if ax is None:
+    own_fig = ax is None
+    if own_fig:
         with plt.rc_context(VENSIM_RC):
             fig, ax = plt.subplots(figsize=figsize)
     else:
@@ -230,132 +268,201 @@ def draw_medv4_diagram(ax=None, figsize=(13, 8), title=None):
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    # ---- Layout (left → right, three horizontal lanes) ------------------
-    # Top lane: TRIMP_src(L) → effective_TRIMP → Fatigue → recovery → sink(R)
-    # Mid lane: TRIMP_src(L) → trimp_in_S → Signal → adaptation → Fitness → atrophy → sink(R)
-    # Bottom lane: signal_loss flows downward from Signal to a sink
+    # ---- Layout ---------------------------------------------------------
+    # Top lane:    cloud → Fatigue → recovery → cloud
+    # Middle lane: cloud → Signal → adaptation → Fitness → atrophy → cloud
+    # Signal also drains downward through signal loss.
+    # Fatigue and Signal share an x so their inflow valves stack vertically,
+    # with the shared driver (effective TRIMP) between them.
     stock_w, stock_h = 1.9, 0.95
+    valve_r = 0.16
+    gap = valve_r + 0.06          # causal arrows stop at the valve rim
 
-    # Stocks
     fatigue_pos = (5.0, 7.0)
-    signal_pos  = (4.5, 3.5)
+    signal_pos  = (5.0, 3.5)
     fitness_pos = (10.0, 3.5)
 
-    # Source / sink clouds
-    cloud_T_top    = (1.2, 7.0)        # TRIMP source for Fatigue
-    cloud_T_mid    = (1.2, 3.5)        # TRIMP source for Signal
-    cloud_recov    = (8.5, 7.0)        # Fatigue → recovery sink
-    cloud_sigloss  = (4.5, 0.7)        # Signal → signal_loss sink
-    cloud_atrophy  = (13.0, 3.5)       # Fitness → atrophy sink
+    cloud_T_top   = (1.3, 7.0)      # source for Fatigue inflow
+    cloud_T_mid   = (1.3, 3.5)      # source for Signal inflow
+    cloud_recov   = (8.6, 7.0)      # recovery sink
+    cloud_sigloss = (5.0, 0.75)     # signal-loss sink
+    cloud_atrophy = (13.1, 3.5)     # atrophy sink
 
-    # Edge helpers
     def left_edge(p):   return (p[0] - stock_w / 2, p[1])
     def right_edge(p):  return (p[0] + stock_w / 2, p[1])
     def top_edge(p):    return (p[0], p[1] + stock_h / 2)
     def bottom_edge(p): return (p[0], p[1] - stock_h / 2)
 
-    # ---- Source clouds --------------------------------------------------
-    draw_cloud(ax, *cloud_T_top, scale=0.55)
-    draw_cloud(ax, *cloud_T_mid, scale=0.55)
-    # Single shared "TRIMP" annotation between the two source clouds
-    ax.text(cloud_T_top[0] - 0.3, (cloud_T_top[1] + cloud_T_mid[1]) / 2,
-            "TRIMP\nforcing", ha="center", va="center",
-            fontsize=10, fontweight="bold", color=COLOR_PARAM)
+    # Valve centers (draw_flow puts the valve at the pipe midpoint)
+    fat_in_valve  = ((cloud_T_top[0] + left_edge(fatigue_pos)[0]) / 2, fatigue_pos[1])
+    sig_in_valve  = ((cloud_T_mid[0] + left_edge(signal_pos)[0]) / 2, signal_pos[1])
+    recov_valve   = ((right_edge(fatigue_pos)[0] + cloud_recov[0]) / 2, fatigue_pos[1])
+    adapt_valve   = ((right_edge(signal_pos)[0] + left_edge(fitness_pos)[0]) / 2, signal_pos[1])
+    atrophy_valve = ((right_edge(fitness_pos)[0] + cloud_atrophy[0]) / 2, fitness_pos[1])
+    sigloss_valve = (signal_pos[0], (bottom_edge(signal_pos)[1] + cloud_sigloss[1]) / 2)
 
-    # ---- Top lane: Fatigue ---------------------------------------------
-    draw_flow(ax, cloud_T_top, left_edge(fatigue_pos),
-              label="effective\nTRIMP", label_offset=(0, 0.65))
-    draw_stock(ax, *fatigue_pos, stock_w, stock_h, "Fatigue")
-    draw_cloud(ax, *cloud_recov, scale=0.55)
-    draw_flow(ax, right_edge(fatigue_pos), cloud_recov,
-              label="recovery", label_offset=(0, 0.55))
+    # Text helpers carry fontscale; the param helpers are no-ops when
+    # detail=False, which drops every constant and its link and keeps the
+    # stocks, flows, drivers and state-to-flow links.
+    fs = fontscale
 
-    # ---- Mid lane: Signal → adaptation → Fitness → atrophy --------------
-    draw_flow(ax, cloud_T_mid, left_edge(signal_pos), label=None)
-    draw_stock(ax, *signal_pos, stock_w, stock_h, "Signal")
-    draw_flow(ax, right_edge(signal_pos), left_edge(fitness_pos),
-              label="adaptation", label_offset=(0, 0.55))
-    draw_stock(ax, *fitness_pos, stock_w, stock_h, "Fitness")
-    draw_cloud(ax, *cloud_atrophy, scale=0.55)
-    draw_flow(ax, right_edge(fitness_pos), cloud_atrophy,
-              label="atrophy", label_offset=(0, 0.55))
+    def flow(src, dst, **kw):
+        draw_flow(ax, src, dst, valve_radius=valve_r, fontsize=10 * fs, **kw)
 
-    # ---- Signal-loss: Signal → sink (downward) --------------------------
-    draw_cloud(ax, *cloud_sigloss, scale=0.55)
-    draw_flow(ax, bottom_edge(signal_pos), cloud_sigloss,
-              label="signal\nloss", label_offset=(0.85, 0))
+    def stock(p, name):
+        draw_stock(ax, *p, stock_w, stock_h, name, fontsize=11 * fs)
 
-    # ---- Parameters (placed BELOW their valves so they don't collide
-    #      with the flow-name labels above) -------------------------------
-    draw_param(ax, 2.6, 5.6,  "adl_trimp")        # influences eff_TRIMP
-    draw_param(ax, 7.5, 6.4,  "tau_fatigue")      # → recovery (top lane)
-    draw_param(ax, 6.0, 1.7,  "tau_signal")       # → signal_loss
-    draw_param(ax, 7.0, 2.7,  "adaptation_rate")  # → adaptation valve
-    draw_param(ax, 8.4, 2.7,  "adaptation_delay") # → adaptation valve
-    draw_param(ax, 11.6, 2.7, "max_frac_rate")    # → atrophy valve
-    draw_param(ax, 12.7, 2.7, "Capacity")         # → atrophy valve
+    def aux(p, name):
+        draw_aux(ax, *p, name, fontsize=10 * fs)
 
-    # ---- Causal links — minimal set, only the key dependencies ---------
-    adapt_valve = ((signal_pos[0] + stock_w/2 + fitness_pos[0] - stock_w/2) / 2,
-                   signal_pos[1])
-    atrophy_valve = ((fitness_pos[0] + stock_w/2 + cloud_atrophy[0]) / 2,
-                     fitness_pos[1])
-    recov_valve = ((fatigue_pos[0] + stock_w/2 + cloud_recov[0]) / 2,
-                   fatigue_pos[1])
-    sigloss_valve = (signal_pos[0],
-                     (signal_pos[1] - stock_h/2 + cloud_sigloss[1]) / 2)
-    eff_trimp_valve = ((cloud_T_top[0] + fatigue_pos[0] - stock_w/2) / 2,
-                       cloud_T_top[1])
+    def link(src, dst, **kw):
+        # Compact view keeps the red "−" glyphs (the non-obvious links) and
+        # lets color alone mark the "+" links.
+        sign = detail or kw.get("polarity") == "-"
+        draw_causal(ax, src, dst, fontsize=12 * fs, show_sign=sign, **kw)
 
-    # Signal → adaptation valve  (main coupling that gates Fitness growth)
-    draw_causal(ax, top_edge(signal_pos), (adapt_valve[0], adapt_valve[1] + 0.18),
-                polarity="+", curvature=0.35)
-    # adaptation_rate (param below valve) → adaptation valve
-    draw_causal(ax, (7.0, 2.85), (adapt_valve[0] - 0.10, adapt_valve[1] - 0.18),
-                polarity="+", curvature=-0.20)
-    # adaptation_delay → adaptation valve  (− because larger delay slows adaptation)
-    draw_causal(ax, (8.4, 2.85), (adapt_valve[0] + 0.10, adapt_valve[1] - 0.18),
-                polarity="-", curvature=0.20)
-    # Fitness → atrophy
-    draw_causal(ax, top_edge(fitness_pos), (atrophy_valve[0], atrophy_valve[1] + 0.18),
-                polarity="+", curvature=0.30)
-    # max_frac_rate → atrophy (+)
-    draw_causal(ax, (11.6, 2.85), (atrophy_valve[0] - 0.10, atrophy_valve[1] - 0.18),
-                polarity="+", curvature=-0.20)
-    # Capacity → atrophy (− because larger capacity → smaller fractional rate)
-    draw_causal(ax, (12.7, 2.85), (atrophy_valve[0] + 0.10, atrophy_valve[1] - 0.18),
-                polarity="-", curvature=0.20)
-    # Fatigue → recovery
-    draw_causal(ax, top_edge(fatigue_pos), (recov_valve[0] - 0.05, recov_valve[1] + 0.18),
-                polarity="+", curvature=0.25)
-    # tau_fatigue → recovery (− because larger tau → slower recovery)
-    draw_causal(ax, (7.5, 6.55), (recov_valve[0] + 0.05, recov_valve[1] - 0.18),
-                polarity="-", curvature=-0.20)
-    # tau_signal → signal_loss (−)
-    draw_causal(ax, (6.0, 1.85), (sigloss_valve[0] + 0.18, sigloss_valve[1]),
-                polarity="-", curvature=0.25)
-    # adl_trimp → effective_TRIMP flow
-    draw_causal(ax, (2.6, 5.45), (eff_trimp_valve[0], eff_trimp_valve[1] + 0.18),
-                polarity="+", curvature=-0.30)
+    def param(p, name):
+        if detail:
+            draw_param(ax, *p, name, fontsize=10 * fs)
+
+    def plink(src, dst, **kw):
+        if detail:
+            link(src, dst, **kw)
+
+    # ---- Stocks, flows, clouds -------------------------------------------
+    for c in (cloud_T_top, cloud_T_mid, cloud_recov, cloud_sigloss, cloud_atrophy):
+        draw_cloud(ax, *c, scale=0.55)
+
+    flow(cloud_T_top, left_edge(fatigue_pos))
+    stock(fatigue_pos, "Fatigue")
+    flow(right_edge(fatigue_pos), cloud_recov,
+         label="recovery", label_offset=(0, 0.45 * max(1.0, fs * 0.9)))
+
+    flow(cloud_T_mid, left_edge(signal_pos))
+    stock(signal_pos, "Signal")
+    # Middle-lane flow names sit high enough that the stock→valve links can
+    # arc in underneath them and visibly reach the valve rim.
+    flow(right_edge(signal_pos), left_edge(fitness_pos),
+         label="adaptation", label_offset=(0, 0.95))
+    stock(fitness_pos, "Fitness")
+    flow(right_edge(fitness_pos), cloud_atrophy,
+         label="atrophy", label_offset=(0, 0.95))
+
+    flow(bottom_edge(signal_pos), cloud_sigloss,
+         label="signal\nloss", label_offset=(-0.75 * max(1.0, fs * 0.85), 0))
+
+    # ---- Training drive: training + adl_trimp -> effective TRIMP -> both
+    #      inflow valves (the same rate enters Fatigue and Signal) ----------
+    eff_pos = (fat_in_valve[0], (fatigue_pos[1] + signal_pos[1]) / 2)
+    if detail:
+        training_pos = (0.75, eff_pos[1] + 0.55)
+        adl_pos = (0.75, eff_pos[1] - 0.55)
+        aux(eff_pos, "effective\nTRIMP")
+        aux(training_pos, "training")
+        param(adl_pos, "adl_trimp")
+        link((training_pos[0] + 0.55, training_pos[1] - 0.05),
+             (eff_pos[0] - 0.62, eff_pos[1] + 0.12), polarity="+", curvature=0.0)
+        plink((adl_pos[0] + 0.62, adl_pos[1] + 0.05),
+              (eff_pos[0] - 0.62, eff_pos[1] - 0.12), polarity="+", curvature=0.0)
+    else:
+        # Compact view: one driver node (adl_trimp is a constant, so it is
+        # dropped with the other parameters).
+        aux(eff_pos, "training\nload")
+    eff_half_h = 0.42 * max(1.0, fs * 0.8)
+    link((eff_pos[0], eff_pos[1] + eff_half_h),
+         _toward((eff_pos[0], eff_pos[1] + eff_half_h), fat_in_valve, gap),
+         polarity="+", curvature=0.0)
+    link((eff_pos[0], eff_pos[1] - eff_half_h),
+         _toward((eff_pos[0], eff_pos[1] - eff_half_h), sig_in_valve, gap),
+         polarity="+", curvature=0.0)
+
+    # ---- Recovery: Fatigue (+), tau_fatigue (-) ---------------------------
+    # Both links enter from BELOW the top lane: the space above it carries the
+    # flow label and the Fatigue→Performance arc.
+    tau_f_pos = (recov_valve[0] + 0.85, recov_valve[1] - 1.0)
+    param(tau_f_pos, "tau_fatigue")
+    link((fatigue_pos[0] + 0.5, fatigue_pos[1] - stock_h / 2),
+         _toward((recov_valve[0] - 0.4, recov_valve[1] - 0.6), recov_valve, gap),
+         polarity="+", curvature=0.35, nudge=-0.25)
+    plink((tau_f_pos[0] - 0.3, tau_f_pos[1] + 0.17),
+          _toward((tau_f_pos[0] - 0.3, tau_f_pos[1] + 0.17), recov_valve, gap),
+          polarity="-", curvature=0.0)
+
+    # ---- Adaptation: Signal (+), adaptation_rate (+), adaptation_delay (-) -
+    ar_pos = (adapt_valve[0] - 1.0, adapt_valve[1] - 1.0)
+    ad_pos = (adapt_valve[0] + 1.0, adapt_valve[1] - 1.0)
+    param(ar_pos, "adaptation_rate")
+    param(ad_pos, "adaptation_delay")
+    link((signal_pos[0] + 0.6, signal_pos[1] + stock_h / 2),
+         _toward((adapt_valve[0] - 0.5, adapt_valve[1] + 0.45), adapt_valve, gap),
+         polarity="+", curvature=-0.25)
+    plink((ar_pos[0] + 0.2, ar_pos[1] + 0.17),
+          _toward((ar_pos[0] + 0.2, ar_pos[1] + 0.17), adapt_valve, gap),
+          polarity="+", curvature=0.0)
+    plink((ad_pos[0] - 0.2, ad_pos[1] + 0.17),
+          _toward((ad_pos[0] - 0.2, ad_pos[1] + 0.17), adapt_valve, gap),
+          polarity="-", curvature=0.0)
+
+    # ---- Signal loss: Signal (+), tau_signal (-) ---------------------------
+    tau_s_pos = (sigloss_valve[0] + 1.25, sigloss_valve[1] - 0.35)
+    param(tau_s_pos, "tau_signal")
+    link((signal_pos[0] + 0.6, signal_pos[1] - stock_h / 2),
+         _toward((sigloss_valve[0] + 0.6, sigloss_valve[1] + 0.5), sigloss_valve, gap),
+         polarity="+", curvature=-0.30)
+    plink((tau_s_pos[0] - 0.5, tau_s_pos[1] + 0.05),
+          _toward((tau_s_pos[0] - 0.5, tau_s_pos[1] + 0.05), sigloss_valve, gap),
+          polarity="-", curvature=0.0)
+
+    # ---- Atrophy: Fitness (+), max_frac_rate (+), Capacity (-) -------------
+    mfr_pos = (atrophy_valve[0] - 0.75, atrophy_valve[1] - 1.0)
+    cap_pos = (atrophy_valve[0] + 0.75, atrophy_valve[1] - 1.0)
+    param(mfr_pos, "max_frac_rate")
+    param(cap_pos, "Capacity")
+    link((fitness_pos[0] + 0.6, fitness_pos[1] + stock_h / 2),
+         _toward((atrophy_valve[0] - 0.5, atrophy_valve[1] + 0.45), atrophy_valve, gap),
+         polarity="+", curvature=-0.25)
+    plink((mfr_pos[0] + 0.2, mfr_pos[1] + 0.17),
+          _toward((mfr_pos[0] + 0.2, mfr_pos[1] + 0.17), atrophy_valve, gap),
+          polarity="+", curvature=0.0)
+    plink((cap_pos[0] - 0.2, cap_pos[1] + 0.17),
+          _toward((cap_pos[0] - 0.2, cap_pos[1] + 0.17), atrophy_valve, gap),
+          polarity="-", curvature=0.0)
+
+    # ---- Performance readout: Fitness (+), Fatigue (-), alpha (-) ----------
+    perf_pos = (11.4, 7.0)
+    alpha_pos = (13.25, 7.0)
+    perf_half_w = 0.75 * max(1.0, fs * 0.9)
+    aux(perf_pos, "Performance")
+    param(alpha_pos, "alpha")
+    link((fitness_pos[0] + 0.1, fitness_pos[1] + stock_h / 2),
+         (perf_pos[0] - 0.15, perf_pos[1] - 0.25), polarity="+", curvature=0.0)
+    # Arcs high over the recovery flow and its label
+    link((fatigue_pos[0] + 0.3, fatigue_pos[1] + stock_h / 2),
+         (perf_pos[0] - 0.45, perf_pos[1] + 0.22), polarity="-", curvature=-0.28)
+    plink((alpha_pos[0] - 0.35, alpha_pos[1]),
+          (perf_pos[0] + perf_half_w, perf_pos[1]), polarity="-", curvature=0.0)
 
     # ---- Title ----------------------------------------------------------
     if title is None:
         title = "MEDv4 stock-and-flow"
-    ax.text(
-        7.0, 8.55, title, ha="center", va="center",
-        fontsize=14, fontweight="bold", color=COLOR_STOCK_EDGE,
-    )
+    if title:
+        ax.text(
+            7.0, 8.6, title, ha="center", va="center",
+            fontsize=14 * fs, fontweight="bold", color=COLOR_STOCK_EDGE,
+        )
 
-    # ---- Legend ---------------------------------------------------------
-    ax.text(
-        0.4, 0.15,
-        "thick pipe + valve = stock-and-flow    "
-        "thin arrow = information link    "
-        "blue + = positive influence    red − = negative influence",
-        ha="left", va="center", fontsize=8, color="#5A5A5A", style="italic",
-    )
+    # ---- Notation key ---------------------------------------------------
+    if show_key:
+        ax.text(
+            0.4, 0.1,
+            "box = stock    pipe + valve = flow    cloud = outside the model    "
+            "thin arrow = influence (blue + raises, red − lowers)    "
+            "bold = computed    italic = parameter",
+            ha="left", va="center", fontsize=8 * fs, color="#5A5A5A", style="italic",
+        )
 
-    fig.tight_layout()
+    if own_fig:
+        fig.tight_layout()
     return fig
 
 
