@@ -37,7 +37,7 @@ before the WASM artifact is shippable. See CLAUDE.md.
 import marimo
 
 __generated_with = "0.23.3"
-app = marimo.App(width="full")
+app = marimo.App(width="full", app_title="rtSD Explorer")
 
 
 @app.cell
@@ -53,11 +53,10 @@ def _imports():
     # Assign to _ so the registry repr isn't rendered as this cell's output.
     _ = alt.data_transformers.disable_max_rows()
 
-    # Two registered chart themes, toggled live via the sidebar "Plot style"
-    # control (see _ui_theme / _theme). Both are GraphPad-Prism-flavored:
-    #   - "Prism"      : heavy black L-axes, no gridlines, outward ticks, Arial
-    #                    bold, offset/"open" axes (the offset look is experimental).
-    #   - "Prism-lite" : softer (#222) axes, faint y-grid, no offset.
+    # The explorer's one chart theme, GraphPad-Prism-flavored: heavy black
+    # L-axes, no gridlines, outward ticks, Arial bold, offset/"open" axes.
+    # R mirror: R/theme_rtsd_prism.R; static figures: render_figures.py. Keep
+    # the three in sync.
     # CROSS-VERSION: alt.theme.register (Altair >=5.5) vs the alt.themes registry
     # (<5.5, what Pyodide 0.27.5 ships). _imports is the root cell, so touching a
     # 5.5-only API here would blank the whole WASM bundle. Both registries accept
@@ -88,68 +87,16 @@ def _imports():
             "line": {"strokeWidth": 3},
         }
     }
-    _THEME_PRISM_LITE = {
-        "config": {
-            "view": {"stroke": "transparent"},
-            "axis": {
-                "domainColor": "#222222", "domainWidth": 1.5,
-                "tickColor": "#222222", "tickWidth": 1.5, "tickSize": 5,
-                "labelColor": "#333333", "labelFontSize": 11,
-                "labelFont": "Arial, system-ui",
-                "titleColor": "#222222", "titleFontSize": 12,
-                "titleFontWeight": 600, "titleFont": "Arial, system-ui",
-                "grid": False,
-            },
-            "axisX": {"grid": False},
-            "axisY": {"grid": True, "gridColor": "#eeeeee", "gridWidth": 1},
-            "title": {
-                "fontSize": 14, "fontWeight": "bold", "color": "#222222",
-                "anchor": "start", "offset": 10, "font": "Arial, system-ui",
-            },
-            "legend": {"labelFontSize": 11, "titleFontSize": 12, "titleColor": "#333333"},
-            "background": "white",
-            "font": "Arial, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-            "line": {"strokeWidth": 2.8},
-        }
-    }
-    _THEMES = {"rtsd_prism": _THEME_PRISM, "rtsd_prism_lite": _THEME_PRISM_LITE}
-    _new_api = hasattr(getattr(alt, "theme", None), "register")
-    for _tname, _tcfg in _THEMES.items():
-        if _new_api:
-            alt.theme.register(_tname, enable=False)(lambda _c=_tcfg: _c)  # >=5.5 / 6
-        else:
-            alt.themes.register(_tname, lambda _c=_tcfg: _c)               # <5.5 (Pyodide)
+    # Register and enable once here, in the root cell: every chart cell depends
+    # on `alt` from this cell, so the theme is active before any chart renders.
+    # The default arg binds the dict now (marimo mangles `_`-prefixed cell names).
+    if hasattr(getattr(alt, "theme", None), "register"):
+        alt.theme.register("rtsd_prism", enable=True)(lambda _c=_THEME_PRISM: _c)  # >=5.5 / 6
+    else:
+        alt.themes.register("rtsd_prism", lambda _c=_THEME_PRISM: _c)              # <5.5 (Pyodide)
+        alt.themes.enable("rtsd_prism")
 
-    def enable_theme(_name):
-        """Activate one of the registered themes (cross-version)."""
-        if _new_api:
-            alt.theme.enable(_name)
-        else:
-            alt.themes.enable(_name)
-        return _name
-
-    return alt, enable_theme, mo, np, pd, plt
-
-
-@app.cell
-def _ui_theme(mo):
-    """Sidebar 'Plot style' toggle — flips between the two registered Prism themes."""
-    theme_choice = mo.ui.radio(
-        options=["Prism", "Prism-lite"],
-        value="Prism",
-        label="Plot style",
-    )
-    return (theme_choice,)
-
-
-@app.cell
-def _theme(enable_theme, theme_choice):
-    """Activate the chosen theme. Chart cells take active_theme so they re-render
-    when the toggle flips (Altair applies the globally-active theme at render)."""
-    active_theme = enable_theme(
-        "rtsd_prism" if theme_choice.value == "Prism" else "rtsd_prism_lite"
-    )
-    return (active_theme,)
+    return alt, mo, np, pd, plt
 
 
 @app.cell
@@ -523,7 +470,6 @@ def _sidebar(
     snapshot_btn,
     tau_fatigue,
     tau_signal,
-    theme_choice,
     variant,
     vol,
 ):
@@ -556,10 +502,9 @@ def _sidebar(
         [
             mo.md("## rtSD Explorer"),
             mo.md("*MEDv4 fitness-fatigue-signal model*"),
-            theme_choice,
             _controls,
             mo.md("---"),
-            mo.md("**Compare regimes** — save the current run to overlay it"),
+            mo.md("**Compare regimes:** save the current run to overlay it"),
             snap_title,
             mo.hstack([snapshot_btn, clear_btn], justify="start", gap=0.5),
             saved_runs_panel,
@@ -571,7 +516,6 @@ def _sidebar(
 
 @app.cell
 def _traj_chart(
-    active_theme,
     Fatigue,
     Fitness,
     Performance,
@@ -586,7 +530,6 @@ def _traj_chart(
     """Interactive trajectory view: a combined normalized overlay (hover-scrubber
     + legend click-to-highlight) atop the 2x2 per-stock detail panels. Live run in
     color; saved snapshots overlaid as gray lines in the detail panels."""
-    _ = active_theme  # depend on the toggle so the chart re-renders on theme switch
     _stocks = list(STOCK_COLORS.keys())
     _live = pd.DataFrame(
         {
@@ -740,7 +683,11 @@ def _traj_chart(
         _ov_lines, _ov_selectors, _ov_rule, _ov_points, _ov_text
     ).properties(
         width=780, height=260,
-        title="All stocks (normalized) — hover to scrub · click a legend entry to isolate · drag to zoom the detail panels below",
+        title=alt.TitleParams(
+            "All stocks (normalized)",
+            subtitle="Hover to scrub. Click a legend entry to isolate a stock. "
+            "Drag to zoom the detail panels below.",
+        ),
     )
 
     traj_chart = alt.vconcat(overlay, _grid).resolve_scale(color="independent")
@@ -748,9 +695,10 @@ def _traj_chart(
 
 
 @app.cell
-def _training_chart(active_theme, alt, grid_t, pd, scenario, sched):
-    """Training-schedule bar chart (altair)."""
-    _ = active_theme  # re-render on theme toggle
+def _training_chart(alt, grid_t, pd, scenario, sched):
+    """Training-schedule bar chart (altair). A single view, so it can take
+    width="container" and fit a phone screen (Vega-Lite allows container
+    sizing only for single and layered views, not concats)."""
     _df = pd.DataFrame({"time": grid_t, "TRIMP": sched})
     training_chart = (
         alt.Chart(_df)
@@ -760,7 +708,8 @@ def _training_chart(active_theme, alt, grid_t, pd, scenario, sched):
             y=alt.Y("TRIMP:Q", title="TRIMP / step"),
             tooltip=[alt.Tooltip("time:Q", format=".2f"), alt.Tooltip("TRIMP:Q", format=".1f")],
         )
-        .properties(width=780, height=170, title=f"Training schedule — scenario: {scenario.value}")
+        .properties(width="container", height=170,
+                    title=f"Training schedule: {scenario.selected_key}")
     )
     return (training_chart,)
 
@@ -793,19 +742,47 @@ def _summary(Fatigue, Fitness, Performance, Signal, mo):
 def _outputs(diagram_fig, mo, state_panel, training_chart, traj_chart):
     """Tabbed main output area. Trajectories tab leads with the wide
     training-schedule bar spanning both columns, then the 2x2 stock panels."""
+    # Phones: marimo's sidebar toggle floats over the top-left corner of the
+    # page, so the title is padded clear of it below 768 px.
+    # Each <style> ships in the same fragment as the element it styles: content
+    # inside mo.ui.tabs renders in its own scope (a page-level rule did not
+    # reach the scroll hint there), so co-location is what makes a rule apply.
+    _header = mo.Html(
+        "<style>@media (max-width: 768px) { .rtsd-header { padding-left: 3rem; } }</style>"
+        "<div class='rtsd-header'>"
+        + mo.md("# rtSD Explorer: MEDv4 model for resistance training").text
+        + "</div>"
+    )
+    # The schedule sizes to its container; cap it at the trajectory view's
+    # rendered width (about 885 px) so the two line up on desktop. The trajectory
+    # view is a linked concat (the overlay's brush zooms the 2x2 panels), which
+    # Vega-Lite cannot size to a container, so on narrow screens it scrolls
+    # sideways inside its wrapper (with a phone-only hint) instead of clipping.
+    _schedule = mo.as_html(training_chart).style({"max-width": "885px", "width": "100%"})
+    _scroll_hint = mo.Html(
+        "<style>"
+        ".rtsd-scroll-hint { display: none; }"
+        "@media (max-width: 768px) { .rtsd-scroll-hint { display: block; "
+        "font-size: 0.85rem; color: #555555; margin: 0.25rem 0; } }"
+        "</style>"
+        "<p class='rtsd-scroll-hint'>Swipe sideways on the charts below to see all of them.</p>"
+    )
+    _traj = mo.as_html(traj_chart).style(
+        {"overflow-x": "auto", "max-width": "100%", "min-width": "0"}
+    )
     mo.vstack(
         [
-            mo.md("# rtSD Explorer — MEDv4 model for resistance training"),
+            _header,
             mo.md(
                 "Three-stock fitness-fatigue ODE driven by a TRIMP forcing function. "
                 "Set a scenario and drag the parameters in the sidebar; the panels recompute live. "
                 "**Snapshot** a run to overlay it on later runs for comparison. "
                 "*Defaults are illustrative, physiologically-grounded calibrated values "
-                "(GET-PAID 2026-05-28) — not publication-grade estimates.*"
+                "(GET-PAID 2026-05-28), not publication-grade estimates.*"
             ),
             mo.ui.tabs(
                 {
-                    "Trajectories": mo.vstack([training_chart, traj_chart]),
+                    "Trajectories": mo.vstack([_schedule, _scroll_hint, _traj]),
                     "Stock-and-flow": diagram_fig,
                     "Summary": state_panel,
                 }

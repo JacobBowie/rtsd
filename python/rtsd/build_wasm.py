@@ -25,7 +25,9 @@ script produces `build/rtsd_wasm.py`:
      the bootstrap.
 
 The notebook's `from model import ...` / `from sd_diagram import ...` then
-resolve under Pyodide with no other edits.
+resolve under Pyodide with no other edits. After export, a loading card is
+injected into `index.html` (see LOADER_HTML) so the 30-60 s Pyodide boot does
+not read as a blank page.
 
 Usage (reproducible — pins marimo 0.23.3 → Pyodide 0.27.5 → Altair 5.4.1):
     uv run --script build_wasm.py            # write build/rtsd_wasm.py
@@ -54,6 +56,70 @@ SIGNATURE_PATCHES = {
     "def _scenarios():": "def _scenarios(_boot):",
     "def _diagram(plt):": "def _diagram(_boot, plt):",
 }
+
+
+# Loading cue injected into the exported index.html. marimo's WASM page is an
+# empty <div id="root"> until Pyodide boots and the notebook runs (30-60 s on a
+# first visit), which reads as a broken page. The card removes itself when the
+# notebook's header (.rtsd-header, rendered by the _outputs cell, so after the
+# charts) appears; the search also walks shadow roots in case marimo renders
+# outputs inside one. Failsafes so it can never trap a visitor: tap to dismiss,
+# and a hard timeout.
+LOADER_HTML = """
+    <div id="rtsd-loading" role="status" aria-live="polite" title="Tap to dismiss">
+      <div class="rtsd-loading-card">
+        <div class="rtsd-spinner" aria-hidden="true"></div>
+        <p class="rtsd-loading-title">Loading the rtSD Explorer</p>
+        <p class="rtsd-loading-note">The model runs in Python inside your browser,
+        so the first load takes 30 to 60 seconds.</p>
+      </div>
+    </div>
+    <style>
+      #rtsd-loading { position: fixed; inset: 0; z-index: 10000; display: flex;
+        align-items: center; justify-content: center; padding: 16px;
+        background: #ffffff; transition: opacity 0.4s ease; cursor: pointer;
+        font-family: Arial, system-ui, sans-serif; color: #111111; }
+      #rtsd-loading.rtsd-done { opacity: 0; pointer-events: none; }
+      .rtsd-loading-card { max-width: 340px; text-align: center; }
+      .rtsd-spinner { width: 36px; height: 36px; margin: 0 auto 16px;
+        border: 4px solid #e3e3e3; border-top-color: #1565C0; border-radius: 50%;
+        animation: rtsd-spin 0.9s linear infinite; }
+      .rtsd-loading-title { font-size: 18px; font-weight: bold; margin: 0 0 8px; }
+      .rtsd-loading-note { font-size: 14px; line-height: 1.45; color: #444444; margin: 0; }
+      @keyframes rtsd-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .rtsd-spinner { animation: none; } }
+    </style>
+    <script>
+      (function () {
+        var el = document.getElementById("rtsd-loading");
+        var started = Date.now();
+        function deepFind(root, sel) {
+          if (root.querySelector && root.querySelector(sel)) return true;
+          var nodes = root.querySelectorAll ? root.querySelectorAll("*") : [];
+          for (var i = 0; i < nodes.length; i++) {
+            if (nodes[i].shadowRoot && deepFind(nodes[i].shadowRoot, sel)) return true;
+          }
+          return false;
+        }
+        function done() {
+          clearInterval(timer);
+          el.classList.add("rtsd-done");
+          setTimeout(function () { el.remove(); }, 500);
+        }
+        el.addEventListener("click", done);
+        var timer = setInterval(function () {
+          if (deepFind(document, ".rtsd-header") || Date.now() - started > 150000) done();
+        }, 500);
+      })();
+    </script>
+"""
+
+
+def _inject_loader(index_html: Path) -> None:
+    html = index_html.read_text(encoding="utf-8")
+    if html.count("</body>") != 1:
+        raise SystemExit("expected exactly one </body> in the exported index.html")
+    index_html.write_text(html.replace("</body>", LOADER_HTML + "  </body>"), encoding="utf-8")
 
 
 def _b64(path: Path) -> str:
@@ -137,7 +203,8 @@ def export(target: Path) -> None:
     stray = out_dir / "CLAUDE.md"
     if stray.exists():
         stray.unlink()
-    print(f"WASM bundle written to {out_dir}/")
+    _inject_loader(out_dir / "index.html")
+    print(f"WASM bundle written to {out_dir}/ (with loading cue)")
 
 
 if __name__ == "__main__":
