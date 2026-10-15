@@ -17,8 +17,8 @@ authors:
 repository-code: "https://github.com/JacobBowie/rtsd"
 url: "https://jacobbowie.com/rtsd/"
 license: MIT
-version: "0.2.2"
-date-released: "2026-06-03"
+version: "0.2.3"
+date-released: "2026-10-15"
 keywords:
   - fitness-fatigue model
   - resistance training
